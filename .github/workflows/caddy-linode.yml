@@ -1,0 +1,84 @@
+# Build ghcr.io/macula-io/caddy-linode from images/caddy-linode, then sign it and attest its
+# SBOM and provenance (macula-ci-images' attest-image.yml), so a station runs only this caddy.
+#
+# The fleet pins the image by DIGEST (vps/*/station-config.env in macula-fleet): a build here
+# changes no box until a reviewed pin commit moves. The tags are for readers only:
+#   <caddy>-linode<module>          the versions inside, moved by a rebuild of the same versions
+#   git-<full commit sha>           exactly which commit built it, never moved
+
+name: caddy-linode
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/caddy-linode/**'
+      - '.github/workflows/caddy-linode.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One build per ref: two quick pushes must not race to the same tags.
+concurrency:
+  group: caddy-linode-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # The version tag is read from what the image is built from, so it cannot drift from it.
+      - name: Tags
+        id: tags
+        run: |
+          caddy=$(sed -n 's/^\s*github.com\/caddyserver\/caddy\/v2 \(v[0-9.]*\)$/\1/p' images/caddy-linode/go.mod)
+          linode=$(sed -n 's/^\s*github.com\/caddy-dns\/linode \(v[0-9.]*\)$/\1/p' images/caddy-linode/go.mod)
+          if [ -z "$caddy" ] || [ -z "$linode" ]; then
+            echo "::error::cannot read versions from go.mod"
+            exit 1
+          fi
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/macula-io/caddy-linode:${caddy#v}-linode${linode#v}"
+            echo "ghcr.io/macula-io/caddy-linode:git-${GITHUB_SHA}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: images/caddy-linode
+          file: images/caddy-linode/Containerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            REVISION=${{ github.sha }}
+
+  attest:
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: macula-io/macula-ci-images/.github/workflows/attest-image.yml@b304162c9b46b366f93af362d3a76f17ae01794f
+    with:
+      image: ghcr.io/macula-io/caddy-linode
+      digest: ${{ needs.build.outputs.digest }}

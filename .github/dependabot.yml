@@ -1,0 +1,17 @@
+# Every pin in this repository moves only by a reviewed change: dependabot proposes, weekly.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # The Go modules caddy-linode is built from (go.mod + go.sum).
+  - package-ecosystem: gomod
+    directory: /images/caddy-linode
+    schedule:
+      interval: weekly
+  # The builder and runtime images it is built on (pinned by digest in the Containerfile).
+  - package-ecosystem: docker
+    directory: /images/caddy-linode
+    schedule:
+      interval: weekly

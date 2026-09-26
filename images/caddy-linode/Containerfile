@@ -1,0 +1,28 @@
+# caddy-linode: caddy with the Linode DNS provider, the TLS front of every macula station.
+#
+# This exists so each station runs ONE known caddy, built in CI and signed, instead of one
+# each box built for itself from the floating caddy:2 tags with whatever the linode module's
+# latest was that day.
+#
+# EVERYTHING IS PINNED: the Go toolchain and the caddy runtime by index digest (multi-arch),
+# every Go module by go.sum (`go mod verify' below). No xcaddy: it resolves module versions
+# at build time and records nothing. The module set reproduces what the stations ran before
+# (caddy v2.11.4, caddy-dns/linode v0.8.0, libdns/linode v0.5.0, go1.26.8; read from
+# `caddy build-info' on amsterdam, 2026-09-27).
+FROM docker.io/library/golang:1.26.8-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+COPY main.go ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/caddy .
+
+FROM docker.io/library/caddy:2.11.4@sha256:0c994536bddb66445885237f1a5dcc1916bccea922661c76b4e9fc24061f9b52
+LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images"
+ARG REVISION=unknown
+LABEL org.opencontainers.image.revision="${REVISION}"
+COPY --from=builder /out/caddy /usr/bin/caddy
+# Refuse to produce an image that is not what it says: the caddy release and the DNS
+# provider the stations' Caddyfiles use.
+RUN caddy version | grep -q '^v2\.11\.4 ' \
+    && caddy list-modules | grep -qx 'dns.providers.linode' \
+    && caddy build-info | grep -qE '^dep\s+github.com/caddy-dns/linode\s+v0\.8\.0\s'
