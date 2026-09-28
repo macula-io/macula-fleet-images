@@ -1,0 +1,84 @@
+# Build ghcr.io/macula-io/searxng from images/searxng (a thin rebuild FROM upstream's pinned index
+# digest), then sign it and attest its SBOM and provenance (macula-ci-images' attest-image.yml),
+# so beam03 runs a searxng our CI signed.
+#
+# The fleet pins the image by DIGEST (edge/scripts/docker-compose.searxng.yml in macula-fleet): a
+# build here changes no box until a reviewed pin commit moves. The tags are for readers only:
+#   <searxng docker tag>            the upstream release inside, e.g. 2026.9.23-3cd69d30e
+#   git-<full commit sha>           exactly which commit built it, never moved
+
+name: searxng
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/searxng/**'
+      - '.github/workflows/searxng.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One build per ref: two quick pushes must not race to the same tags.
+concurrency:
+  group: searxng-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # The version tag is read from the FROM line the image is built from, so it cannot drift.
+      - name: Tags
+        id: tags
+        run: |
+          version=$(sed -n 's/^FROM docker\.io\/searxng\/searxng:\([0-9.]*-[0-9a-f]*\)@sha256:[0-9a-f]\{64\}$/\1/p' images/searxng/Containerfile)
+          if [ -z "$version" ]; then
+            echo "::error::cannot read the searxng tag from the Containerfile's FROM line"
+            exit 1
+          fi
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/macula-io/searxng:${version}"
+            echo "ghcr.io/macula-io/searxng:git-${GITHUB_SHA}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: images/searxng
+          file: images/searxng/Containerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            REVISION=${{ github.sha }}
+
+  attest:
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: macula-io/macula-ci-images/.github/workflows/attest-image.yml@b304162c9b46b366f93af362d3a76f17ae01794f
+    with:
+      image: ghcr.io/macula-io/searxng
+      digest: ${{ needs.build.outputs.digest }}

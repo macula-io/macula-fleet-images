@@ -15,3 +15,8 @@ updates:
     directory: /images/caddy-linode
     schedule:
       interval: weekly
+  # searxng is a thin rebuild FROM upstream's index digest: a new SearXNG arrives as a proposal here.
+  - package-ecosystem: docker
+    directory: /images/searxng
+    schedule:
+      interval: weekly

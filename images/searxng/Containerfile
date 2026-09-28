@@ -1,0 +1,23 @@
+# searxng: the SearXNG metasearch engine beam03 runs (loopback only, 127.0.0.1:8888).
+#
+# This exists so beam03 runs a searxng image our CI built and signed, because upstream signs
+# nothing and the fleet's reconciler refuses (enforce) or reports (audit) an unsigned image.
+#
+# WHAT THIS IS, AND IS NOT: a thin rebuild. It starts FROM upstream's image, pinned by its
+# multi-arch INDEX digest, and adds only labels and a self-check. It does NOT rebuild SearXNG
+# from source: the signature says "our CI took exactly this upstream digest", not "we audited
+# its contents". The base.* labels record that digest so anyone can compare against upstream.
+#
+# Pinned: SearXNG 2026.9.23 (3cd69d30e), the digest beam03 has run since 2026-09-24
+# (macula-fleet edge/scripts/docker-compose.searxng.yml). Entrypoint, env (GRANIAN_*), volumes
+# and user are upstream's, unchanged.
+FROM docker.io/searxng/searxng:2026.9.23-3cd69d30e@sha256:bcfaed4091d59f7ce85670bd701a2d0295872196dc19908a3965a8353b149f83
+
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.base.name="docker.io/searxng/searxng:2026.9.23-3cd69d30e" \
+      org.opencontainers.image.base.digest="sha256:bcfaed4091d59f7ce85670bd701a2d0295872196dc19908a3965a8353b149f83"
+
+# Refuse to produce an image that is not what it says: the SearXNG release baked into the code.
+RUN grep -qx 'DOCKER_TAG = "2026.9.23-3cd69d30e"' /usr/local/searxng/searx/version_frozen.py
