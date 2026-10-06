@@ -20,3 +20,13 @@ updates:
     directory: /images/searxng
     schedule:
       interval: weekly
+  # hanko and timescaledb are thin rebuilds FROM upstream's index digest: a new release arrives as a
+  # proposal here (hanko's version check stage is pinned too).
+  - package-ecosystem: docker
+    directory: /images/hanko
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /images/timescaledb
+    schedule:
+      interval: weekly
