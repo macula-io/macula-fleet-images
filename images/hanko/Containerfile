@@ -15,7 +15,7 @@
 # binary, and the final image takes a marker from it: the check cannot be skipped by the build.
 FROM ghcr.io/teamhanko/hanko:v2.6.0@sha256:a40936c9aac36cc915d7bc2229580e49375850b84cedb475aed2d3c629eff276 AS upstream
 
-FROM docker.io/library/busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e AS check
+FROM docker.io/library/busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e AS check
 COPY --from=upstream /hanko /hanko
 # Refuse to produce an image that is not what it says: the hanko release baked into the binary.
 RUN grep -aq 'v2\.6\.0' /hanko && echo v2.6.0 > /hanko-version
