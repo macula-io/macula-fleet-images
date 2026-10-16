@@ -1,0 +1,88 @@
+# Build ghcr.io/macula-io/backup-age from images/backup-age (Alpine pinned by index digest plus
+# age, sqlite, zstd and tar at pinned versions), then sign it and attest its SBOM and provenance
+# (macula-ci-images' attest-image.yml), so frankfurt's realm-backup sidecar runs an image our CI
+# signed (macula-fleet#26).
+#
+# The fleet pins the image by DIGEST (vps/macula-io/docker-compose.yml in macula-fleet): a build
+# here changes no box until a reviewed pin commit moves. The tags are for readers only:
+#   age<age line>-alpine<alpine version>      what is inside, e.g. age1.2-alpine3.22.6
+#   git-<full commit sha>                     exactly which commit built it, never moved
+
+name: backup-age
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/backup-age/**'
+      - '.github/workflows/backup-age.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One build per ref: two quick pushes must not race to the same tags.
+concurrency:
+  group: backup-age-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # The version tag is read from the Containerfile it is built from, so it cannot drift.
+      - name: Tags
+        id: tags
+        run: |
+          f=images/backup-age/Containerfile
+          alpine=$(sed -n 's/^FROM docker\.io\/library\/alpine:\([0-9.]*\)@sha256:[0-9a-f]\{64\}$/\1/p' "$f")
+          age=$(sed -n 's/^RUN apk add .* age~\([0-9.]*\) .*$/\1/p' "$f")
+          if [ -z "$alpine" ] || [ -z "$age" ]; then
+            echo "::error::cannot read the alpine and age versions from the Containerfile"
+            exit 1
+          fi
+          version="age${age}-alpine${alpine}"
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/macula-io/backup-age:${version}"
+            echo "ghcr.io/macula-io/backup-age:git-${GITHUB_SHA}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: images/backup-age
+          file: images/backup-age/Containerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            REVISION=${{ github.sha }}
+
+  attest:
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: macula-io/macula-ci-images/.github/workflows/attest-image.yml@601c719b7cfbd8ed15852281d87c652d776a6ae7
+    with:
+      image: ghcr.io/macula-io/backup-age
+      digest: ${{ needs.build.outputs.digest }}

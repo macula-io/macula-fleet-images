@@ -18,6 +18,7 @@ own, cannot pass that. This repository is where such an image becomes one that c
 | `ghcr.io/macula-io/searxng` | SearXNG, the metasearch engine on beam03 (loopback only) | `images/searxng`: a **thin rebuild** FROM upstream `searxng/searxng:2026.9.23-3cd69d30e` pinned by index digest; labels and a version self-check only, NOT rebuilt from source (the signature vouches for which upstream digest, not for its contents) |
 | `ghcr.io/macula-io/hanko` | hanko, the passkey/auth server on frankfurt (macula.io) | `images/hanko`: a **thin rebuild** FROM upstream `teamhanko/hanko:v2.6.0` pinned by index digest; labels and a version check (in a pinned busybox stage, upstream is distroless) only, NOT rebuilt from source |
 | `ghcr.io/macula-io/timescaledb` | PostgreSQL 16 with TimescaleDB, the database on frankfurt (realm, portal, hanko) | `images/timescaledb`: a **thin rebuild** FROM upstream `timescale/timescaledb:2.29.2-pg16` pinned by index digest; labels and a version check only, NOT rebuilt from source |
+| `ghcr.io/macula-io/backup-age` | age, sqlite, zstd and tar on Alpine: the tools frankfurt's realm-backup sidecar encrypts the realm's key and records with (macula-fleet#26) | `images/backup-age`: Alpine 3.22.6 pinned by index digest, the four packages held to a major.minor line (apk `~`), checked by a self-check; no script inside (the job is the fleet's) |
 
 ## How an image here is built
 

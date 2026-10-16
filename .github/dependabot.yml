@@ -30,3 +30,8 @@ updates:
     directory: /images/timescaledb
     schedule:
       interval: weekly
+  # backup-age: Alpine by index digest (its apk lines move by hand with it).
+  - package-ecosystem: docker
+    directory: /images/backup-age
+    schedule:
+      interval: weekly

@@ -1,0 +1,36 @@
+# backup-age: the tools a backup sidecar needs to write an archive only the key holder can read.
+#
+# This exists so frankfurt's realm-backup sidecar (macula-fleet#26) can encrypt the realm's
+# signing key and records to a key that is NOT on that box, with an image our CI built and
+# signed (frankfurt refuses an unsigned image).
+#
+# WHAT THIS IS: Alpine pinned by its multi-arch INDEX digest, plus four packages held to a
+# major.minor line (apk's `~'): age (encryption to a public recipient), sqlite (a consistent `.backup' of a live WAL
+# database), zstd and tar. No script lives here: the job is the fleet's (a bind-mounted script),
+# so a change to what is backed up is a fleet commit, not an image build.
+#
+# Not exact apk versions on purpose: Alpine keeps only the newest build of a package per branch,
+# so an exact pin makes the image unbuildable at the first point release, and then nobody can
+# rebuild the tool that decrypts the backups. A patch release inside the line is taken; the
+# self-check below refuses anything outside it.
+FROM docker.io/library/alpine:3.22.6@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.base.name="docker.io/library/alpine:3.22.6" \
+      org.opencontainers.image.base.digest="sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8"
+
+RUN apk add --no-cache age~1.2 sqlite~3.49 zstd~1.5 tar~1.35
+
+# The sidecar runs as the realm's uid 1000 on a read-only root. A named volume mounted here is
+# seeded from this directory on first use, ownership included; without it docker creates the
+# volume root-owned and the sidecar can never write an archive.
+RUN mkdir -p /backups && chown 1000:1000 /backups
+
+# Refuse to produce an image that is not what it says: the tools, on those lines.
+RUN age --version | grep -q '^1\.2\.' \
+ && age-keygen --version | grep -q '^1\.2\.' \
+ && sqlite3 --version | grep -q '^3\.49\.' \
+ && zstd --version | grep -q 'v1\.5\.' \
+ && tar --version | grep -q '^tar (GNU tar) 1\.35$'
