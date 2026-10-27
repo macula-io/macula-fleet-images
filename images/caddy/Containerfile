@@ -1,0 +1,32 @@
+# caddy: the TLS front of the beam-campus.net VPS (the site, hanko and realm.beam-campus.net),
+# macula-fleet#55.
+#
+# This exists so that box runs a caddy image our CI built and signed, because upstream's is not
+# signed by our CI and the fleet's reconciler refuses (enforce) or reports (audit) such an image.
+# Until now the box ran docker.io/library/caddy:2-alpine by tag, which moves under it.
+#
+# WHY NOT caddy-linode: that image is built from source with the Linode DNS provider for the
+# stations' ACME DNS-01, and it is at caddy 2.11.4. This box's Caddyfile uses HTTP-01 only and
+# runs caddy 2.11.7 (vps/beam-campus-net/docker-compose.yml), so the right shape is upstream's
+# own caddy at the release the box runs, not a build with a module it never loads and one patch
+# release behind.
+#
+# WHAT THIS IS, AND IS NOT: a thin rebuild. It starts FROM upstream's image, pinned by its
+# multi-arch INDEX digest, and adds only labels and a version check. It does NOT rebuild caddy
+# from source: the signature says "our CI took exactly this upstream digest", not "we audited its
+# contents". The base.* labels record that digest so anyone can compare upstream.
+#
+# Pinned: caddy 2.11.7 on Alpine, the digest beam-campus.net has run. Entrypoint, cmd, config
+# path and everything else are upstream's, unchanged.
+FROM docker.io/library/caddy:2.11.7-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
+
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.base.name="docker.io/library/caddy:2.11.7-alpine" \
+      org.opencontainers.image.base.digest="sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f"
+
+# Refuse to produce an image that is not what it says: the caddy release the pin names. This
+# line moves with the pin, as hanko's does, so a dependabot bump that changes only the FROM
+# digest fails here until the release it moved to is written down.
+RUN caddy version | grep -q '^v2\.11\.7 '

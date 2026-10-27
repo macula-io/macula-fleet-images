@@ -1,0 +1,28 @@
+# postgres: the database beam-campus.net's hanko runs (macula-fleet#55).
+#
+# This exists so that box runs a postgres image our CI built and signed, because upstream's is
+# not signed by our CI and the fleet's reconciler refuses (enforce) or reports (audit) such an
+# image. Until now the box ran docker.io/library/postgres:16-alpine by tag.
+#
+# WHAT THIS IS, AND IS NOT: a thin rebuild. It starts FROM upstream's image, pinned by its
+# multi-arch INDEX digest, and adds only labels and a version check. It does NOT rebuild
+# PostgreSQL from source: the signature says "our CI took exactly this upstream digest", not "we
+# audited its contents". The base.* labels record that digest so anyone can compare upstream.
+#
+# Pinned: PostgreSQL 16.15 on Alpine, the exact digest beam-campus.net has run (macula-fleet
+# vps/beam-campus-net/docker-compose.yml). The Alpine base is upstream's, so the hanko data
+# directory the box already holds is read by the same binaries that wrote it: no locale, no
+# libc and no major-version change, which is the whole reason this is a thin rebuild and not the
+# Debian-based timescaledb image. Entrypoint, cmd, volumes and user are upstream's, unchanged.
+FROM docker.io/library/postgres:16.15-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
+
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.base.name="docker.io/library/postgres:16.15-alpine" \
+      org.opencontainers.image.base.digest="sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab"
+
+# Refuse to produce an image that is not what it says: the PostgreSQL release the pin names.
+# This line moves with the pin, as hanko's does, so a dependabot bump that changes only the FROM
+# digest fails here until the release it moved to is written down.
+RUN postgres --version | grep -q ' 16\.15'

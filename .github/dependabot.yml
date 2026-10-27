@@ -30,6 +30,16 @@ updates:
     directory: /images/timescaledb
     schedule:
       interval: weekly
+  # caddy and postgres are thin rebuilds too: a new upstream release arrives as a proposal here,
+  # and its Containerfile's version self-check moves with it.
+  - package-ecosystem: docker
+    directory: /images/caddy
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /images/postgres
+    schedule:
+      interval: weekly
   # backup-age: Alpine by index digest (its apk lines move by hand with it).
   - package-ecosystem: docker
     directory: /images/backup-age
