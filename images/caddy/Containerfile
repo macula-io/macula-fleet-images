@@ -26,7 +26,9 @@ LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet
       org.opencontainers.image.base.name="docker.io/library/caddy:2.11.7-alpine" \
       org.opencontainers.image.base.digest="sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f"
 
-# Refuse to produce an image that is not what it says: the caddy release the pin names. This
-# line moves with the pin, as hanko's does, so a dependabot bump that changes only the FROM
-# digest fails here until the release it moved to is written down.
-RUN caddy version | grep -q '^v2\.11\.7 '
+# Refuse to produce an image that is not what it says: the caddy release the pin names, from
+# ALPINE -- the variant this box ran. The box's Caddyfile is HTTP-01 and nothing here needs a
+# different base, so a Debian build under this alpine tag would be a change nobody asked for;
+# the test names it rather than discovering it on a recreate. This line moves with the pin.
+RUN test -f /etc/alpine-release \
+ && caddy version | grep -q '^v2\.11\.7 '

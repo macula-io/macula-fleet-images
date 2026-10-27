@@ -38,6 +38,11 @@ jobs:
 
   build:
     needs: guard
+    # A build from any ref but the default branch is REFUSED (macula-fleet#55). workflow_dispatch
+    # runs from ANY branch, release-guard passes every ref that is not a v* tag, and the fleet pins
+    # and verifies a DIGEST without caring which ref built it -- so an unreviewed branch whose
+    # Containerfile is FROM anything could push, be signed, and verify on a box.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read

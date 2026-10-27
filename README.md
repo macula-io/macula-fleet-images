@@ -32,6 +32,10 @@ own, cannot pass that. This repository is where such an image becomes one that c
 - **One workflow per image** (`.github/workflows/<image>.yml`) builds on a change to
   its directory, pushes, and calls `attest-image.yml` pinned by commit sha: signed by
   digest, SBOM and provenance attested, all verified before the job goes green.
+- **Only the default branch builds** (`if: github.ref == 'refs/heads/main'` on `build`).
+  `workflow_dispatch` runs from any branch and the release guard passes anything that is
+  not a `v*` tag, while the fleet verifies a digest without caring which ref built it: a
+  build from a side branch would push, be signed, and verify on a box (macula-fleet#55).
 - **Tags are for readers.** `<versions>` (e.g. `2.11.4-linode0.8.0`) and
   `git-<commit sha>`. The fleet pins the **digest**, so a build here changes no box
   until a reviewed pin commit in macula-fleet moves it.

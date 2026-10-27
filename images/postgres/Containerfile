@@ -22,7 +22,10 @@ LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet
       org.opencontainers.image.base.name="docker.io/library/postgres:16.15-alpine" \
       org.opencontainers.image.base.digest="sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab"
 
-# Refuse to produce an image that is not what it says: the PostgreSQL release the pin names.
-# This line moves with the pin, as hanko's does, so a dependabot bump that changes only the FROM
-# digest fails here until the release it moved to is written down.
-RUN postgres --version | grep -q ' 16\.15'
+# Refuse to produce an image that is not what it says: PostgreSQL 16.15, from ALPINE. The Alpine
+# test is not decoration. The box's hanko data directory was initialised by musl's postgres, and a
+# Debian build of the same version prints "16.15 (Debian 16.15-1.pgdg...)", which a version grep
+# alone would accept -- so a hand bump that pasted a Debian digest under this alpine tag would
+# sign and be pinned onto that data directory. This line moves with the pin, as hanko's does.
+RUN test -f /etc/alpine-release \
+ && postgres --version | grep -qx 'postgres (PostgreSQL) 16\.15'
