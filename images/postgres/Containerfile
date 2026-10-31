@@ -14,7 +14,7 @@
 # directory the box already holds is read by the same binaries that wrote it: no locale, no
 # libc and no major-version change, which is the whole reason this is a thin rebuild and not the
 # Debian-based timescaledb image. Entrypoint, cmd, volumes and user are upstream's, unchanged.
-FROM docker.io/library/postgres:16.15-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
+FROM docker.io/library/postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
 
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images" \
