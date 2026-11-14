@@ -13,7 +13,7 @@
 # so an exact pin makes the image unbuildable at the first point release, and then nobody can
 # rebuild the tool that decrypts the backups. A patch release inside the line is taken; the
 # self-check below refuses anything outside it.
-FROM docker.io/library/alpine:3.22.6@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+FROM docker.io/library/alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/macula-io/macula-fleet-images" \
